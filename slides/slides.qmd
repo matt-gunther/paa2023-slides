@@ -1,0 +1,267 @@
+---
+title: |
+  <h2 style='font-size: 70px'>
+  Linking Climate Change With Pregnancy Outcomes 
+  </h2>
+  <div style='margin-bottom: 50px; font-size: 48px; color: #98579B'>
+  2020 Data from PMA Ethiopia
+  </div>
+author: 
+  - Kathryn Grace, Matt Gunther, Jiao Yu - University of Minnesota 
+# date: "`r Sys.Date()`"
+format: 
+  revealjs:
+    # For more options, see:
+    # https://quarto.org/docs/reference/formats/presentations/revealjs.html
+    theme: [default, ../resources/slides.scss]
+    standalone: true
+    embed-resources: true # standalone HTML file with no external dependencies?
+    chalkboard: false # allow user markup on slides?
+    menu: true # allow user to access navigation menu?
+    smaller: true # smaller font? see css
+    scrollable: false # allow vertical overflow content to scroll?
+    incremental: true # show list items incrementally?
+    preview-links: false # open links in an iframe preview overlay?
+    reference-location: document # location of cited references
+    link-external-icon: false # don't use this if code-link: true
+    code-link: true # create hyperlinks to function documentation (preferred)
+    code-line-numbers: false # bug: cannot have this and code-link!
+    auto-animate: true # enabled by default
+    center: false # Vertical centering of slides
+    code-overflow: scroll # 'scroll' or 'wrap' wide code chunks
+    df-print: paged # 'paged', 'kable', or 'tibble'
+    fig-align: center
+    link-external-newwindow: true
+    logo: qrlogo.png
+execute:
+  echo: true # show source code 
+  eval: true # evaluate source code 
+  warning: false # include warning messages
+  error: false # include error messages and do not halt processing
+knitr:
+  opts_chunk:
+    echo: false 
+    fig.width: 14
+    fig.height: 10
+    fig.align: center
+---
+
+
+```{r setup, include=FALSE}
+source(here::here("r/utils.R"))
+knitr::opts_chunk$set(echo = FALSE)
+library(here)
+library(terra)
+library(ggspatial)
+library(fixest)
+library(marginaleffects)
+knitr::opts_chunk$set(
+  fig.width = 20, 
+  fig.align = "left",
+  warning = FALSE,
+  message = FALSE
+)
+
+preg_fig <- here("03_analysis/figures/pregnancy_fig.r") %>% source()
+ea_map <- here("03_analysis/figures/ea_map.r") %>% source()
+res_in_reg <- here("03_analysis/figures/residence_in_region.r") %>% source()
+heat_map <- here("03_analysis/figures/heat_map.r") %>% source()
+pop_map <- here("03_analysis/figures/pop_density_map.r") %>% source()
+steps <- here("03_analysis/figures/stepwise_heat.r") %>% source()
+results <- here("03_analysis/figures/binary_fe_figs.r") %>% source()
+tertiles <- here("03_analysis/figures/tertiles.r") %>% source()
+corr <- here("03_analysis/figures/corr.r") %>% source()
+```
+
+# Highlights {background-color='#BDD2DE'}
+
+ - Heat exposure during pregnancy increases risks for **spontaneous miscarriage and stillbirth**. 
+ - However, women develop strategies for mitigating risks over time.  
+ - We find evidence that women who have **lived in a hot place for many years** are less likely to experience negative birth outcomes following heat exposure during pregnancy.
+
+# 2020 Data from <br>PMA Ethiopia 
+
+## 2020 Data from PMA Ethiopia 
+
+Women report all pregnancy outcomes within 3 years 
+
+```{r}
+preg_fig$value
+```
+
+
+## 2020 Data from PMA Ethiopia 
+
+Must have resided near **sample cluster (•)** for 2 years (centroid displaced up to 10 km) 
+
+```{r}
+ea_map$value + 
+  theme(legend.position = "right", legend.spacing.y = unit(60, 'pt')) +
+  guides(fill = guide_legend(keywidth = unit(80, units = 'pt'), 
+                              ncol = 1, byrow = TRUE, 
+                              override.aes = aes(linewidth = 1, color = "white")))
+```
+
+## 2020 Data from PMA Ethiopia 
+
+Beyond 2 years, women report how long they have lived in their current region
+
+```{r}
+res_in_reg$value + 
+  theme(legend.position = "right", legend.spacing.y = unit(60, 'pt')) +
+  guides(color = guide_legend(keywidth = unit(80, units = 'pt'), 
+                              ncol = 1, byrow = TRUE, 
+                              override.aes = aes(linewidth = 1)))
+```
+
+# <span style="color: #00263A">Measuring Heat Exposure</span>  {background-color='#BD282F80'}
+
+<span style="color: #00263A; font-size: 30px;">Addressing challenges to spatial and temporal aggregation</span> 
+
+## Measuring Heat Exposure
+
+We use a daily maximum temperature record, [CHIRTS Tmax](https://www.chc.ucsb.edu/data) (0.05 arc-degree resolution, 1980-2020)
+
+```{r}
+tif <- here("02_cleaning/data/tmax_et.tif") %>% rast()
+tif <- tif$`2020.04.13`
+regs <- here("03_analysis/data/shape_et.geojson") %>% vect()
+
+ggplot() + 
+  layer_spatial(tif %>% mask(regs, touches = FALSE)) + 
+  layer_spatial(regs, alpha = 0) + 
+  theme_pma + 
+  theme(
+    legend.justification = c(0, 0.5), 
+    legend.position = "right",
+    legend.margin = margin(l = 100, r = 50),
+    plot.caption = element_text(hjust = 0, vjust = 1),
+  ) +
+  scale_y_continuous(limits = c(3, 16), breaks = c(4, 10, 16)) +
+  scale_x_continuous(breaks = c(34,40,46))   + 
+  ggspatial::annotation_scale(
+    pad_x = unit(25, "pt"),
+    pad_y = unit(50, "pt"),
+    aes(style = "ticks", location = "tr")
+  ) + 
+  scale_fill_gradient(
+    breaks = c(15, 25, 35),
+    low = "white", 
+    high = "#BD282F", 
+    na.value = "transparent"
+  ) + 
+  guides(fill = guide_colorbar(
+    direction = "vertical",
+    barwidth = 0.5,
+    barheight = 24,
+    title.position = "right"
+  )) + 
+  labs( 
+    x = NULL, y = NULL, 
+    fill = "Tmax C\u00B0 \nApril 12, 2020",
+  ) 
+```
+
+## Measuring Heat Exposure
+
+::: {.fragment}
+
+<div class="row">
+  <div class="column" style="margin-bottom: 0px; vertical-align: middle; width: 250px !important;">
+  <img src="precise.png" style = "width: 250px;"></img>
+  </div>
+  <div class="column" style="vertical-align: middle; padding-left: 5em; width: 600px;">
+  <span style="font-size: 30px;">
+  For a given day during a pregnancy, we get a spatially precise measure of the Tmax readings within a 10km buffer around the **sample cluster centroid**
+  </span>
+  </div>
+</div>
+
+:::
+
+::: {.fragment}
+
+<div class="row">
+  <div class="column" style="margin-bottom: 0px; vertical-align: middle; width: 250px !important;">
+  <img src="general.png" style = "width: 250px;"></img>
+  </div>
+  <div class="column" style="vertical-align: middle; padding-left: 5em; width: 600px;">
+  <span style="font-size: 30px;">
+  Lifetime exposure is less spatially precise - we take an average of all Tmax readings in the **region** on that day, weighted for the population density at each reading 
+  </span>
+  </div>
+</div>
+
+:::
+
+## Measuring Heat Exposure 
+
+It's especially important to weight regional means by population density!
+
+```{r}
+heat_map$value + 
+   guides(fill = guide_colorbar(
+    direction = "vertical",
+    barwidth = 0.5,
+    barheight = 24,
+    title.position = "right"
+  ))
+```
+
+
+## Measuring Heat Exposure 
+
+:::: {.columns style="margin-top: 3em;"}
+::: {.column width="50%"}
+<img src="thresholds.png" style = "width: 100%;"></img>
+:::
+
+::: {.column width="50%"}
+<span style="font-size: 30px;">
+We create indicators at **three heat thresholds** for each day, 1980-2020.
+<br><br>
+We identify a **heatwave** whenever a threshold is passed for *at least* 3 consecutive days 
+
+:::: {.nonincremental style="padding-left: 2em;"}
+
+  * 0-2 hot days = 0 heatwaves
+  * 3 hot days = 1 heatwave
+  * 4 hot days = 1.33 heatwaves, etc
+  
+::::
+
+</span>
+
+:::
+::::
+
+## Lifetime Heat Exposure by Region 
+
+One for each of 6 heat measures. Lifetime exposure to 30° C Days looks like this: 
+
+```{r}
+steps <- here("03_analysis/figures/stepwise_heat.r") %>% source()
+steps$value
+```
+
+# Likelihood of miscarriage / stillbirth {background-color='#BDD2DE'}
+
+Analysis of the interaction between **lifetime heat exposure** (tertiles) and **pregnancy heat exposure**
+
+<div style="font-size: 0.75em">
+*Binary logistic regression. Controls include: mother's age, partnership status, educational background, household wealth, religion, pregnancy intentions at conception, and clustered fixed effects for sample strata (region + urban).*
+</div>
+
+## Results: Heat as Days >30° C
+
+```{r, fig.height=4}
+results$value$days30$or
+```
+
+```{r, fig.height=7}
+results$value$days30$cap
+```
+
+
+# Thanks! {background-color='#BDD2DE'}
+

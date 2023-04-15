@@ -1,0 +1,177 @@
+---
+title: Linking climate change with pregnancy outcomes <br> 2020 Data from PMA Ethiopia  
+author:
+  - name: Kathryn Grace
+  - name: Matt Gunther
+  - name: Jiao Yu
+affiliation:
+  - address: University of Minnesota
+column_numbers: 3
+output: 
+  posterdown::posterdown_html:
+    css: '../resources/poster.css'
+    self_contained: TRUE
+primary_colour: '#00263A'
+secondary_colour: '#98579B'
+affiliation_textcol: "#00000080"
+link_col: '#98579B'
+title_textcol: '#00263A'
+sectitle_bgcol: 'white'
+sectitle_textcol: '#00263A'
+sectitle_borderwidth: 0
+font_family: "cabrito_sans_norm_regular"
+logoleft_name:  '../resources/logo-left.png'
+logoright_name: '../resources/logo-right.png'
+poster_height: "40in"
+poster_width: "64in"
+knit: pagedown::chrome_print
+
+---
+
+<!--
+Go here for additional YAML options: 
+https://github.com/brentthorne/posterdown/wiki/posterdown_html
+
+Or just edit `resources/poster.css` 
+-->
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(here)
+library(gtsummary)
+library(ggtext)
+library(fixest)
+library(marginaleffects)
+here("r/utils.R") %>% source
+knitr::opts_chunk$set(
+  fig.width = 20, 
+  fig.align = "left",
+  warning = FALSE,
+  message = FALSE
+)
+
+preg_fig <- here("03_analysis/figures/pregnancy_fig.r") %>% source()
+ea_map <- here("03_analysis/figures/ea_map.r") %>% source()
+res_in_reg <- here("03_analysis/figures/residence_in_region.r") %>% source()
+heat_map <- here("03_analysis/figures/heat_map.r") %>% source()
+pop_map <- here("03_analysis/figures/pop_density_map.r") %>% source()
+```
+
+::: highlights
+
+# Highlights
+
+Heat exposure during pregnancy is associated with increased risks for **spontaneous miscarriage and stillbirth**. 
+
+However, women develop strategies for mitigating these risks over time.
+
+We find evidence that women who have **lived in a hot place for many years** are less likely to experience a miscarriage or stillbirth following heat exposure during pregnancy.
+:::
+
+# PMA Ethiopia - 2020 Survey
+
+Women report all pregnancy outcomes within 3 years 
+
+```{r, fig.height=4.2}
+preg_fig$value
+```
+
+Must have resided near **sample cluster (•)** for 2 years (<10 km) 
+*and* provide <br>number years residing in current region
+
+```{r, fig.height=10}
+ea_map$value
+```
+
+```{r, fig.height=6.5}
+res_in_reg$value
+```
+
+# Measuring Heat Exposure
+
+We use a daily maximum temperature record, *CHIRTS Tmax*
+
+  * 0.05 arc-degree resolution 
+  * Daily measurements 1980-2020
+  * Combines satellite images with local station data 
+
+<div class="row" style="display: table-row;">
+  <div class="column" style="display: table-cell; vertical-align: middle; padding-left: 2em;">
+  Heat exposure measured at <br>multiple thresholds<br><br>Heatwave defined as  <br>3+ days reaching threshold
+  </div>
+  <div class="column" style="padding-left: 4em; padding-right: 2em;">
+```{r, out.width="775px", fig.align='right'}
+knitr::include_graphics(here("resources/thresholds.png"))
+```
+  </div>
+</div>
+<br>
+<div class="row" style="display: table-row;">
+<div class="column" style="display: table-cell; padding-left: 2em;" >
+```{r, out.width="150px", fig.align='left'}
+knitr::include_graphics(here("resources/precise.png"))
+```
+</div>
+<div class="column" style="display: table-cell; vertical-align: middle; padding-left: 2em;">
+
+**Pregnancy** exposure measured at **sample cluster**.<br>
+Precise to 10 km. 
+</div>
+</div>
+<div class="row" style="display: table-row;">
+<div class="column" style="display: table-cell; padding-left: 2em;" >
+```{r, out.width="150px", fig.align='left'}
+knitr::include_graphics(here("resources/general.png"))
+```
+</div>
+<div class="column" style="display: table-cell; vertical-align: middle; padding-left: 2em;">
+
+**Lifetime** exposure measured by residence in **region**.<br>
+Spatial mean adjusted for population density.
+</div>
+</div>
+
+```{r, fig.height=9.5}
+heat_map$value
+```
+
+
+```{r, fig.height=7}
+steps <- here("03_analysis/figures/stepwise_heat.r") %>% source()
+steps$value
+```
+
+# Likelihood of miscarriage / stillbirth  
+
+For each heat measure, we define **lifetime exposure tertiles** relative to each woman's length of residence in her region. 
+
+These were interacted with a corresponding measure of **pregnancy exposure** in a binary logistic regression model for spontaneous miscarriage or stillbirth. 
+
+```{r}
+results <- here("03_analysis/figures/binary_fe_figs.r") %>% source
+results <- results$value
+```
+
+## Heat Measure: Pregnancy Days Reaching 30° C 
+
+```{r, fig.height=4}
+results$days30$or
+```
+
+```{r, fig.height=7}
+results$days30$cap
+```
+
+## Heat Measure: Pregnancy Heatwaves Reaching 32° C 
+
+```{r, fig.height=4}
+results$waves32$or
+```
+
+```{r, fig.height=7}
+results$waves32$cap 
+```
+
+<div style="font-size: 0.7em">
+*Controls include: mother's age, partnership status, educational background, household wealth, religion, pregnancy intentions at conception, and clustered fixed effects for sample strata (region + urban).*
+</div>
